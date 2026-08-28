@@ -50,50 +50,61 @@ export const sendProjectInviteEmail = async ({
 
     // 1. Try Resend API if RESEND_API_KEY is configured
     if (resendApiKey) {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'TaskFlow <onboarding@resend.dev>',
-          to: [toEmail],
-          subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
-          html: getEmailHtml(senderName, projectName, role, inviteLink),
-        }),
-      });
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'onboarding@resend.dev',
+            to: [toEmail],
+            subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+            html: getEmailHtml(senderName, projectName, role, inviteLink),
+          }),
+        });
 
-      if (response.ok) {
-        console.log(`✉️ Real email dispatched via Resend API to ${toEmail}`);
-        return true;
+        const resData: any = await response.json().catch(() => ({}));
+        if (response.ok) {
+          console.log(`✉️ Real email dispatched via Resend API to ${toEmail}`);
+          return true;
+        } else {
+          console.error(`❌ Resend API Error (${response.status}):`, resData);
+        }
+      } catch (resErr) {
+        console.error('❌ Resend API fetch exception:', resErr);
       }
     }
 
     // 2. Try Gmail / Custom SMTP if credentials exist
     if (smtpUser && smtpPass) {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
 
-      await transporter.sendMail({
-        from: `"TaskFlow Workspaces" <${smtpUser}>`,
-        to: toEmail,
-        subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
-        html: getEmailHtml(senderName, projectName, role, inviteLink),
-      });
+        await transporter.sendMail({
+          from: `"TaskFlow Workspaces" <${smtpUser}>`,
+          to: toEmail,
+          subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+          html: getEmailHtml(senderName, projectName, role, inviteLink),
+        });
 
-      console.log(`✉️ Real email dispatched via SMTP (${smtpUser}) to ${toEmail}`);
-      return true;
+        console.log(`✉️ Real email dispatched via SMTP (${smtpUser}) to ${toEmail}`);
+        return true;
+      } catch (smtpErr) {
+        console.error('❌ SMTP dispatch exception:', smtpErr);
+      }
     }
 
-    console.warn(`⚠️ SMTP Credentials (GMAIL_USER & GMAIL_APP_PASS or RESEND_API_KEY) not set in environment. Standard join link generated.`);
+    console.warn(`⚠️ Neither Resend API nor SMTP credentials succeeded. Direct join link generated.`);
     return false;
   } catch (error) {
     console.error('❌ Email dispatch failed:', error);

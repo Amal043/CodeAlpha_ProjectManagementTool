@@ -285,8 +285,9 @@ router.post(
           member: newMember,
           inviteLink,
           isNewUser: false,
+          emailSent,
           message: emailSent
-            ? `Invitation email delivered directly to ${email}! Added to project.`
+            ? `Invitation email sent to ${email}!`
             : `Added ${existingUser.name} (${email}) to project! Share the join link below.`,
         });
       }
@@ -324,9 +325,10 @@ router.post(
       return res.status(200).json({
         inviteLink,
         isNewUser: true,
+        emailSent,
         message: emailSent
-          ? `Invitation email delivered directly to ${email}!`
-          : `Invitation generated for ${email}! Share the join link below. (Add GMAIL_USER & GMAIL_APP_PASS on Render for automatic email delivery)`,
+          ? `Invitation email sent to ${email}!`
+          : `Invitation generated for ${email}! Share the join link below.`,
       });
     } catch (error) {
       next(error);
