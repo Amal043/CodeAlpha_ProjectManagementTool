@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/layout/Navbar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { CreateProjectModal } from '../components/projects/CreateProjectModal';
+import { EditProjectModal } from '../components/projects/EditProjectModal';
 import { TeamMembersModal } from '../components/tools/TeamMembersModal';
 import { ReportsModal } from '../components/tools/ReportsModal';
 import { SettingsModal } from '../components/tools/SettingsModal';
@@ -16,7 +17,7 @@ import { CalendarModal } from '../components/tools/CalendarModal';
 import { ProfileModal } from '../components/user/ProfileModal';
 import {
   FolderPlus, Layout, CheckCircle2, AlertTriangle, ArrowRight,
-  Plus, ChevronDown, MoreVertical, Calendar, Zap
+  Plus, ChevronDown, MoreVertical, Calendar, Zap, Edit3, Trash2, Image as ImageIcon
 } from 'lucide-react';
 
 const PRIORITY_BADGE: Record<string, { bg: string; text: string }> = {
@@ -66,7 +67,10 @@ export const DashboardPage: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal States
+  // Modal & Context Menu States
+  const [activeMenuProjectId, setActiveMenuProjectId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMyTasksModalOpen, setIsMyTasksModalOpen] = useState(false);
@@ -105,6 +109,17 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => { fetchDashboardData(); }, []);
 
+  const handleDeleteProject = async (projectId: string, projectName: string) => {
+    if (window.confirm(`Are you sure you want to delete project "${projectName}"? This action cannot be undone.`)) {
+      try {
+        await projectAPI.delete(projectId);
+        fetchDashboardData();
+      } catch (err) {
+        console.error('Failed to delete project:', err);
+      }
+    }
+  };
+
   const myTasks = allTasks.filter((t) => t.assigneeId === user?.id);
   const completedTasks = allTasks.filter((t) => t.status === 'DONE');
   const dueSoonTasks = allTasks.filter((t) => {
@@ -119,7 +134,7 @@ export const DashboardPage: React.FC = () => {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200" onClick={() => setActiveMenuProjectId(null)}>
       <Navbar
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
@@ -207,21 +222,80 @@ export const DashboardPage: React.FC = () => {
                       const progress = projectTasks.length > 0 ? Math.round((doneTasks / projectTasks.length) * 100) : 0;
                       return (
                         <div key={project.id} onClick={() => navigate(`/projects/${project.id}`)}
-                          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 cursor-pointer transition-all group">
+                          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 cursor-pointer transition-all group relative">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2.5">
-                              <div className={`w-8 h-8 rounded-lg ${PROJECT_COLORS[index % PROJECT_COLORS.length]} text-white text-xs font-bold flex items-center justify-center`}>
-                                {getProjectInitials(project.name)}
-                              </div>
+                              {project.imageUrl ? (
+                                <img src={project.imageUrl} alt={project.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+                              ) : (
+                                <div className={`w-8 h-8 rounded-lg ${PROJECT_COLORS[index % PROJECT_COLORS.length]} text-white text-xs font-bold flex items-center justify-center`}>
+                                  {getProjectInitials(project.name)}
+                                </div>
+                              )}
                               <div>
                                 <h4 className="font-bold text-slate-900 dark:text-white text-xs group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{project.name}</h4>
                                 <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">{project.description || 'Project workspace'}</p>
                               </div>
                             </div>
-                            <button className="p-0.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                              <MoreVertical className="w-3.5 h-3.5" />
-                            </button>
+
+                            {/* Three-dots menu button */}
+                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuProjectId(activeMenuProjectId === project.id ? null : project.id);
+                                }}
+                                title="Project Options"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              {activeMenuProjectId === project.id && (
+                                <div className="absolute right-0 top-7 z-50 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 animate-in fade-in duration-150 text-xs">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuProjectId(null);
+                                      setEditingProject(project);
+                                    }}
+                                    className="w-full px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                                    Edit Name & Details
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuProjectId(null);
+                                      setEditingProject(project);
+                                    }}
+                                    className="w-full px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    Import Project Cover Image
+                                  </button>
+
+                                  <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuProjectId(null);
+                                      handleDeleteProject(project.id, project.name);
+                                    }}
+                                    className="w-full px-3 py-2 text-left font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete Project
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
+
                           {/* Progress */}
                           <div className="flex items-center gap-2.5 mb-2">
                             <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -229,6 +303,7 @@ export const DashboardPage: React.FC = () => {
                             </div>
                             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{progress}%</span>
                           </div>
+
                           {/* Footer */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center -space-x-1">
@@ -366,6 +441,16 @@ export const DashboardPage: React.FC = () => {
           )}
         </main>
       </div>
+
+      <EditProjectModal
+        isOpen={!!editingProject}
+        project={editingProject}
+        onClose={() => setEditingProject(null)}
+        onSuccess={() => {
+          fetchDashboardData();
+          setEditingProject(null);
+        }}
+      />
 
       <ProfileModal
         isOpen={isProfileModalOpen}

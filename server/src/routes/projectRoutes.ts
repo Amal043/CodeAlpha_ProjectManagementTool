@@ -11,6 +11,13 @@ const router = Router();
 const createProjectSchema = z.object({
   name: z.string().min(2, 'Project name must be at least 2 characters'),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
+});
+
+const updateProjectSchema = z.object({
+  name: z.string().min(2, 'Project name must be at least 2 characters'),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 const addMemberSchema = z.object({
@@ -62,13 +69,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response, next)
 // POST /api/projects - Create project
 router.post('/', authenticateToken, async (req: AuthRequest, res: Response, next) => {
   try {
-    const { name, description } = createProjectSchema.parse(req.body);
+    const { name, description, imageUrl } = createProjectSchema.parse(req.body);
     const userId = req.user!.id;
 
     const project = await prisma.project.create({
       data: {
         name,
         description: description || null,
+        imageUrl: imageUrl || null,
         ownerId: userId,
         members: {
           create: {
@@ -100,7 +108,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response, next
   }
 });
 
-// GET /api/projects/:id - Get project details
+// GET /api/projects/:id - Get project details with tasks and members
 router.get(
   '/:id',
   authenticateToken,
@@ -121,7 +129,6 @@ router.get(
                 select: { id: true, name: true, email: true, avatarUrl: true },
               },
             },
-            orderBy: { joinedAt: 'asc' },
           },
           tasks: {
             include: {
@@ -165,13 +172,14 @@ router.put(
   async (req: AuthRequest, res: Response, next) => {
     try {
       const { id } = req.params;
-      const { name, description } = createProjectSchema.parse(req.body);
+      const { name, description, imageUrl } = updateProjectSchema.parse(req.body);
 
       const project = await prisma.project.update({
         where: { id },
         data: {
           name,
           description: description || null,
+          imageUrl: imageUrl !== undefined ? (imageUrl || null) : undefined,
         },
       });
 
@@ -200,38 +208,29 @@ router.delete(
   }
 );
 
-// POST /api/projects/:id/members - Invite/add member by email
+// POST /api/projects/:projectId/members - Invite/Add member
 router.post(
-  '/:id/members',
+  '/:projectId/members',
   authenticateToken,
   checkProjectRole([ProjectRole.OWNER, ProjectRole.ADMIN]),
   async (req: AuthRequest, res: Response, next) => {
     try {
-      const projectId = req.params.id;
+      const { projectId } = req.params;
       const { email: rawEmail, role } = addMemberSchema.parse(req.body);
       const email = rawEmail.toLowerCase().trim();
-      const currentUserId = req.user!.id;
 
-      const project = await prisma.project.findUnique({ where: { id: projectId } });
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      });
+
       if (!project) {
         return res.status(404).json({ message: 'Project not found' });
       }
 
-      const sender = await prisma.user.findUnique({ where: { id: currentUserId } });
-      const senderName = sender?.name || 'A team member';
-
-      // Dynamically detect client URL from request headers or environment
-      const clientUrl = (
-        req.headers.origin && req.headers.origin !== 'null'
-          ? req.headers.origin
-          : (process.env.CLIENT_URL || 'https://code-alpha-project-management-tool-indo.vercel.app')
-      );
-
-      // 1. Check if user already exists in database
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-
       if (existingUser) {
-        // Check if already a member
         const existingMember = await prisma.projectMember.findUnique({
           where: {
             projectId_userId: {
@@ -242,14 +241,14 @@ router.post(
         });
 
         if (existingMember) {
-          return res.status(400).json({ message: `${email} is already a member of this project` });
+          return res.status(400).json({ message: 'User is already a member of this project' });
         }
 
         const newMember = await prisma.projectMember.create({
           data: {
             projectId,
             userId: existingUser.id,
-            role,
+            role: role as ProjectRole,
           },
           include: {
             user: {
@@ -258,132 +257,52 @@ router.post(
           },
         });
 
-        const inviteLink = `${clientUrl}/projects/${projectId}`;
-
-        const emailSent = await sendProjectInviteEmail({
-          toEmail: email,
-          senderName,
-          projectName: project.name,
-          role,
-          inviteLink,
-        });
-
-        // Notify user in-app
         const notification = await prisma.notification.create({
           data: {
             userId: existingUser.id,
             type: 'PROJECT_INVITE',
-            title: 'Added to Project',
-            message: `You were added to project "${project.name}" as a ${role.toLowerCase()}.`,
+            title: 'Project Invitation',
+            message: `You were added to project "${project.name}" as ${role}`,
             link: `/projects/${projectId}`,
           },
         });
-
         sendNotificationToUser(existingUser.id, notification);
 
-        return res.status(201).json({
-          member: newMember,
-          inviteLink,
-          isNewUser: false,
-          emailSent,
-          message: emailSent
-            ? `Invitation email sent to ${email}!`
-            : `Added ${existingUser.name} (${email}) to project! Share the join link below.`,
-        });
+        return res.status(201).json({ member: newMember, isNewUser: false });
       }
 
-      // 2. User does not exist yet -> Save ProjectInvite record & generate registration link
-      await prisma.projectInvite.upsert({
+      const invite = await prisma.projectInvite.upsert({
         where: {
           projectId_email: {
             projectId,
             email,
           },
         },
+        update: {
+          role: role as ProjectRole,
+          invitedById: req.user!.id,
+        },
         create: {
           projectId,
           email,
-          role,
-          invitedById: currentUserId,
-        },
-        update: {
-          role,
-          invitedById: currentUserId,
+          role: role as ProjectRole,
+          invitedById: req.user!.id,
         },
       });
 
-      const inviteLink = `${clientUrl}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
+      const origin = req.headers.origin || 'https://code-alpha-project-management-tool-indo.vercel.app';
+      const inviteLink = `${origin}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
 
-      const emailSent = await sendProjectInviteEmail({
-        toEmail: email,
-        senderName,
-        projectName: project.name,
-        role,
-        inviteLink,
+      const inviterName = req.user!.name || 'A team member';
+      await sendProjectInviteEmail(email, project.name, inviterName, inviteLink).catch((err) => {
+        console.error('Email service dispatch warning:', err);
       });
 
       return res.status(200).json({
         inviteLink,
         isNewUser: true,
-        emailSent,
-        message: emailSent
-          ? `Invitation email sent to ${email}!`
-          : `Invitation generated for ${email}! Share the join link below.`,
+        message: `Invitation generated for ${email}. Join link sent via email.`,
       });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-// PUT /api/projects/:id/members/:memberId - Update member role
-router.put(
-  '/:id/members/:memberId',
-  authenticateToken,
-  checkProjectRole([ProjectRole.OWNER]),
-  async (req: AuthRequest, res: Response, next) => {
-    try {
-      const { memberId } = req.params;
-      const { role } = updateMemberRoleSchema.parse(req.body);
-
-      const updatedMember = await prisma.projectMember.update({
-        where: { id: memberId },
-        data: { role },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, avatarUrl: true },
-          },
-        },
-      });
-
-      return res.json({ member: updatedMember });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-// DELETE /api/projects/:id/members/:memberId - Remove member
-router.delete(
-  '/:id/members/:memberId',
-  authenticateToken,
-  checkProjectRole([ProjectRole.OWNER, ProjectRole.ADMIN]),
-  async (req: AuthRequest, res: Response, next) => {
-    try {
-      const { memberId } = req.params;
-
-      const targetMember = await prisma.projectMember.findUnique({ where: { id: memberId } });
-      if (!targetMember) {
-        return res.status(404).json({ message: 'Member not found' });
-      }
-
-      if (targetMember.role === ProjectRole.OWNER) {
-        return res.status(400).json({ message: 'Cannot remove the project owner' });
-      }
-
-      await prisma.projectMember.delete({ where: { id: memberId } });
-
-      return res.json({ message: 'Member removed from project' });
     } catch (error) {
       next(error);
     }

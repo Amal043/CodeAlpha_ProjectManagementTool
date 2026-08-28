@@ -23,6 +23,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
   ownerId: string;
   createdAt: string;
   updatedAt: string;

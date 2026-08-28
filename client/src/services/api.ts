@@ -53,16 +53,16 @@ export const projectAPI = {
     const res = await api.get<{ projects: Project[] }>('/projects');
     return res.data;
   },
-  create: async (name: string, description?: string) => {
-    const res = await api.post<{ project: Project }>('/projects', { name, description });
+  create: async (name: string, description?: string, imageUrl?: string) => {
+    const res = await api.post<{ project: Project }>('/projects', { name, description, imageUrl });
     return res.data;
   },
   getById: async (id: string) => {
     const res = await api.get<{ project: Project & { tasks: Task[] }; currentUserRole: ProjectRole }>(`/projects/${id}`);
     return res.data;
   },
-  update: async (id: string, name: string, description?: string) => {
-    const res = await api.put<{ project: Project }>(`/projects/${id}`, { name, description });
+  update: async (id: string, name: string, description?: string, imageUrl?: string) => {
+    const res = await api.put<{ project: Project }>(`/projects/${id}`, { name, description, imageUrl });
     return res.data;
   },
   delete: async (id: string) => {
