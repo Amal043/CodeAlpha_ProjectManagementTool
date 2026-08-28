@@ -16,12 +16,13 @@ model User {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  ownedProjects Project[]       @relation("ProjectOwner")
-  memberships   ProjectMember[]
-  assignedTasks Task[]          @relation("TaskAssignee")
-  createdTasks  Task[]          @relation("TaskCreator")
-  comments      Comment[]
-  notifications Notification[]
+  ownedProjects   Project[]       @relation("ProjectOwner")
+  memberships     ProjectMember[]
+  assignedTasks   Task[]          @relation("TaskAssignee")
+  createdTasks    Task[]          @relation("TaskCreator")
+  comments        Comment[]
+  notifications   Notification[]
+  sentInvites     ProjectInvite[] @relation("InviteSender")
 }
 
 model Project {
@@ -35,6 +36,7 @@ model Project {
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     ProjectMember[]
   tasks       Task[]
+  invites     ProjectInvite[]
 }
 
 model ProjectMember {
@@ -48,6 +50,20 @@ model ProjectMember {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+}
+
+model ProjectInvite {
+  id          String   @id @default(uuid())
+  email       String
+  projectId   String
+  role        String   @default("MEMBER")
+  invitedById String
+  createdAt   DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedBy User     @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, email])
 }
 
 model Task {

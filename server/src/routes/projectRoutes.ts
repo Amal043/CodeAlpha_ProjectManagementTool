@@ -199,7 +199,7 @@ router.delete(
   }
 );
 
-// POST /api/projects/:id/members - Add member by email
+// POST /api/projects/:id/members - Invite/add member by email
 router.post(
   '/:id/members',
   authenticateToken,
@@ -207,55 +207,98 @@ router.post(
   async (req: AuthRequest, res: Response, next) => {
     try {
       const projectId = req.params.id;
-      const { email, role } = addMemberSchema.parse(req.body);
-
-      const userToAdd = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-      if (!userToAdd) {
-        return res.status(404).json({ message: `No user found with email ${email}` });
-      }
-
-      const existingMember = await prisma.projectMember.findUnique({
-        where: {
-          projectId_userId: {
-            projectId,
-            userId: userToAdd.id,
-          },
-        },
-      });
-
-      if (existingMember) {
-        return res.status(400).json({ message: 'User is already a member of this project' });
-      }
-
-      const newMember = await prisma.projectMember.create({
-        data: {
-          projectId,
-          userId: userToAdd.id,
-          role,
-        },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, avatarUrl: true },
-          },
-        },
-      });
+      const { email: rawEmail, role } = addMemberSchema.parse(req.body);
+      const email = rawEmail.toLowerCase().trim();
+      const currentUserId = req.user!.id;
 
       const project = await prisma.project.findUnique({ where: { id: projectId } });
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
 
-      // Notify invited user
-      const notification = await prisma.notification.create({
-        data: {
-          userId: userToAdd.id,
-          type: 'PROJECT_INVITE',
-          title: 'Added to Project',
-          message: `You were added to project "${project?.name}" as a ${role.toLowerCase()}.`,
-          link: `/projects/${projectId}`,
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+      // 1. Check if user already exists in database
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+
+      if (existingUser) {
+        // Check if already a member
+        const existingMember = await prisma.projectMember.findUnique({
+          where: {
+            projectId_userId: {
+              projectId,
+              userId: existingUser.id,
+            },
+          },
+        });
+
+        if (existingMember) {
+          return res.status(400).json({ message: `${email} is already a member of this project` });
+        }
+
+        const newMember = await prisma.projectMember.create({
+          data: {
+            projectId,
+            userId: existingUser.id,
+            role,
+          },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        });
+
+        // Notify user
+        const notification = await prisma.notification.create({
+          data: {
+            userId: existingUser.id,
+            type: 'PROJECT_INVITE',
+            title: 'Added to Project',
+            message: `You were added to project "${project.name}" as a ${role.toLowerCase()}.`,
+            link: `/projects/${projectId}`,
+          },
+        });
+
+        sendNotificationToUser(existingUser.id, notification);
+
+        const inviteLink = `${clientUrl}/projects/${projectId}`;
+
+        return res.status(201).json({
+          member: newMember,
+          inviteLink,
+          isNewUser: false,
+          message: `Added ${existingUser.name} (${email}) to project workspace!`,
+        });
+      }
+
+      // 2. User does not exist yet -> Save ProjectInvite record & generate registration link
+      await prisma.projectInvite.upsert({
+        where: {
+          projectId_email: {
+            projectId,
+            email,
+          },
+        },
+        create: {
+          projectId,
+          email,
+          role,
+          invitedById: currentUserId,
+        },
+        update: {
+          role,
+          invitedById: currentUserId,
         },
       });
 
-      sendNotificationToUser(userToAdd.id, notification);
+      const inviteLink = `${clientUrl}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
 
-      return res.status(201).json({ member: newMember });
+      return res.status(200).json({
+        inviteLink,
+        isNewUser: true,
+        message: `Invitation generated for ${email}! Share the join link so they can register and join automatically.`,
+      });
     } catch (error) {
       next(error);
     }

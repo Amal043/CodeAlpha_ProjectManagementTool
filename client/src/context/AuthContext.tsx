@@ -8,7 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, projectId?: string, role?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -45,8 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
   };
 
-  const register = async (name: string, email: string, password: string) => {
-    const data = await authAPI.register(name, email, password);
+  const register = async (name: string, email: string, password: string, projectId?: string, role?: string) => {
+    const data = await authAPI.register(name, email, password, projectId, role);
     localStorage.setItem('taskflow_token', data.token);
     setToken(data.token);
     setUser(data.user);

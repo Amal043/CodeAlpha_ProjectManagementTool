@@ -14,7 +14,6 @@ const api = axios.create({
   },
 });
 
-// Interceptor to attach Authorization Bearer token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('taskflow_token');
   if (token) {
@@ -28,8 +27,8 @@ export const authAPI = {
     const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
     return res.data;
   },
-  register: async (name: string, email: string, password: string) => {
-    const res = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password });
+  register: async (name: string, email: string, password: string, projectId?: string, role?: string) => {
+    const res = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password, projectId, role });
     return res.data;
   },
   getMe: async () => {
@@ -67,7 +66,7 @@ export const projectAPI = {
     return res.data;
   },
   addMember: async (projectId: string, email: string, role: ProjectRole) => {
-    const res = await api.post<{ member: any }>(`/projects/${projectId}/members`, { email, role });
+    const res = await api.post<{ member?: any; inviteLink?: string; isNewUser?: boolean; message?: string }>(`/projects/${projectId}/members`, { email, role });
     return res.data;
   },
   updateMemberRole: async (projectId: string, memberId: string, role: ProjectRole) => {

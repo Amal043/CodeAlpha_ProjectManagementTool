@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Kanban, ArrowRight, Loader2, KeyRound, Mail, User } from 'lucide-react';
+import { Kanban, ArrowRight, Loader2, KeyRound, Mail, User, Sparkles } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const inviteEmail = searchParams.get('email') || '';
+  const inviteProjectId = searchParams.get('projectId') || '';
+  const inviteRole = searchParams.get('role') || '';
+
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(inviteEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (inviteEmail) {
+      setEmail(inviteEmail);
+    }
+  }, [inviteEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +40,12 @@ export const RegisterPage: React.FC = () => {
     setError('');
 
     try {
-      await register(name.trim(), email.trim(), password);
-      navigate('/dashboard');
+      await register(name.trim(), email.trim(), password, inviteProjectId || undefined, inviteRole || undefined);
+      if (inviteProjectId) {
+        navigate(`/projects/${inviteProjectId}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -46,13 +61,26 @@ export const RegisterPage: React.FC = () => {
         <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
 
         {/* Brand Header */}
-        <div className="flex flex-col items-center text-center mb-8 relative">
+        <div className="flex flex-col items-center text-center mb-6 relative">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25 mb-3">
             <Kanban className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Account</h1>
           <p className="text-xs text-slate-500 mt-1">Get started with TaskFlow team workspaces</p>
         </div>
+
+        {/* Invitation Welcome Banner */}
+        {inviteEmail && (
+          <div className="mb-6 p-3.5 rounded-2xl bg-violet-50 border border-violet-200 text-violet-800 text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
+            <Sparkles className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-slate-900 mb-0.5">Workspace Invitation Received!</p>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                You were invited to join a project workspace. Register your password below to join automatically!
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold text-center animate-in fade-in">
@@ -69,7 +97,7 @@ export const RegisterPage: React.FC = () => {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Alex Johnson"
+                placeholder="Nitish Tripathi"
                 className="w-full pl-10 pr-3.5 py-3 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
               />
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -84,7 +112,7 @@ export const RegisterPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex@taskflow.dev"
+                placeholder="nitishtripathi547@gmail.com"
                 className="w-full pl-10 pr-3.5 py-3 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -114,11 +142,11 @@ export const RegisterPage: React.FC = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Creating account...
+                Registering...
               </>
             ) : (
               <>
-                Register Account
+                Register & Join Workspace
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

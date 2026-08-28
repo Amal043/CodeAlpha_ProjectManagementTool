@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Loader2, Search } from 'lucide-react';
+import { X, UserPlus, Loader2, Search, Copy, Check, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { projectAPI, userAPI } from '../../services/api';
 import { ProjectRole, User } from '../../types';
 
@@ -20,6 +20,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const [role, setRole] = useState<ProjectRole>('MEMBER');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [generatedInviteLink, setGeneratedInviteLink] = useState('');
+  const [copied, setCopied] = useState(false);
+
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -51,24 +55,34 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      setError('Please provide a valid user email');
+      setError('Please provide a valid user email address');
       return;
     }
 
     setIsSubmitting(true);
     setError('');
+    setSuccessMessage('');
+    setGeneratedInviteLink('');
 
     try {
-      await projectAPI.addMember(projectId, email.trim(), role);
-      setEmail('');
-      setRole('MEMBER');
+      const data = await projectAPI.addMember(projectId, email.trim(), role);
+      setSuccessMessage(data.message || 'Invitation generated successfully!');
+      if (data.inviteLink) {
+        setGeneratedInviteLink(data.inviteLink);
+      }
       onSuccess();
-      onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add team member');
+      setError(err.response?.data?.message || 'Failed to send invite');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const copyLink = () => {
+    if (!generatedInviteLink) return;
+    navigator.clipboard.writeText(generatedInviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
   };
 
   return (
@@ -81,7 +95,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">Invite Team Member</h3>
-              <p className="text-xs text-slate-500">Add collaborators to this workspace</p>
+              <p className="text-xs text-slate-500">Add any email or share a join link</p>
             </div>
           </div>
           <button
@@ -98,10 +112,38 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           </div>
         )}
 
+        {successMessage && (
+          <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-3 animate-in fade-in">
+            <div className="flex items-center gap-2 font-semibold">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{successMessage}</span>
+            </div>
+
+            {generatedInviteLink && (
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-200/80 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={generatedInviteLink}
+                  className="flex-1 text-[11px] font-mono text-slate-700 bg-transparent outline-none truncate"
+                />
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 flex items-center gap-1.5 transition-colors"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              User Email *
+              User Email Address *
             </label>
             <div className="relative">
               <input
@@ -109,7 +151,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="e.g. sam@taskflow.dev"
+                placeholder="e.g. nitishtripathi547@gmail.com"
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-xs font-medium text-slate-800"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -160,7 +202,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              Done
             </button>
             <button
               type="submit"
@@ -170,10 +212,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Inviting...
+                  Generating Invite...
                 </>
               ) : (
-                'Add Member'
+                'Generate Join Link'
               )}
             </button>
           </div>

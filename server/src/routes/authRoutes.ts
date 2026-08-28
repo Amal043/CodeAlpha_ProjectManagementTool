@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../db/prisma';
 import { authenticateToken } from '../middlewares/auth';
-import { AuthRequest } from '../types';
+import { AuthRequest, ProjectRole } from '../types';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'taskflow_jwt_secret_key_violet_2026';
@@ -13,6 +13,8 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
+  projectId: z.string().optional(),
+  role: z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']).optional(),
 });
 
 const loginSchema = z.object({
@@ -23,9 +25,10 @@ const loginSchema = z.object({
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password, name } = registerSchema.parse(req.body);
+    const { email: rawEmail, password, name, projectId: paramProjectId, role: paramRole } = registerSchema.parse(req.body);
+    const email = rawEmail.toLowerCase().trim();
 
-    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
@@ -35,12 +38,44 @@ router.post('/register', async (req, res, next) => {
 
     const user = await prisma.user.create({
       data: {
-        email: email.toLowerCase(),
+        email,
         password: hashedPassword,
         name,
         avatarUrl,
       },
     });
+
+    // Process pending project invitations for this email
+    const pendingInvites = await prisma.projectInvite.findMany({
+      where: { email },
+    });
+
+    for (const invite of pendingInvites) {
+      await prisma.projectMember.create({
+        data: {
+          projectId: invite.projectId,
+          userId: user.id,
+          role: invite.role as ProjectRole,
+        },
+      }).catch(() => {}); // Ignore duplicate
+    }
+
+    // Delete processed invites
+    if (pendingInvites.length > 0) {
+      await prisma.projectInvite.deleteMany({ where: { email } });
+    }
+
+    // If explicit projectId parameter was passed
+    if (paramProjectId) {
+      const assignedRole = (paramRole as ProjectRole) || ProjectRole.MEMBER;
+      await prisma.projectMember.create({
+        data: {
+          projectId: paramProjectId,
+          userId: user.id,
+          role: assignedRole,
+        },
+      }).catch(() => {});
+    }
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
