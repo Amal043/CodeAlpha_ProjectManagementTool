@@ -1,92 +1,98 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { projectAPI } from '../services/api';
+import { Project, Task, ProjectRole } from '../types';
 import { Navbar } from '../components/layout/Navbar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
-import { TaskDetailModal } from '../components/kanban/TaskDetailModal';
 import { InviteMemberModal } from '../components/projects/InviteMemberModal';
-import { CreateProjectModal } from '../components/projects/CreateProjectModal';
-import { projectAPI, taskAPI } from '../services/api';
-import { Project, Task, TaskStatus, ProjectRole } from '../types';
 import { useSocket } from '../context/SocketContext';
-import { Plus, UserPlus, Users, Loader2, Trash2 } from 'lucide-react';
+import { Plus, UserPlus, Trash2, Shield, ArrowLeft } from 'lucide-react';
 
 export const ProjectDetailPage: React.FC = () => {
-  const { id: projectId } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { socket, joinProject, leaveProject } = useSocket();
+  const { joinProject, leaveProject, socket } = useSocket();
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [project, setProject] = useState<(Project & { tasks: Task[] }) | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole | null>(null);
+  const [userProjects, setUserProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Modals state
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState<boolean>(false);
-  const [initialTaskStatus, setInitialTaskStatus] = useState<TaskStatus>('TODO');
-  const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState<boolean>(false);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
-  const fetchProjectData = async () => {
-    if (!projectId) return;
-    setIsLoading(true);
+  const fetchProjectDetails = async () => {
+    if (!id) return;
     try {
-      const data = await projectAPI.getById(projectId);
+      const data = await projectAPI.getById(id);
       setProject(data.project);
-      setTasks(data.project.tasks || []);
       setCurrentUserRole(data.currentUserRole);
-    } catch (error: any) {
-      console.error('Failed to load project:', error);
-      if (error.response?.status === 403 || error.response?.status === 404) {
-        navigate('/dashboard');
-      }
+    } catch (err) {
+      console.error('Failed to load project:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchProjectData();
-  }, [projectId]);
+  const fetchUserProjects = async () => {
+    try {
+      const data = await projectAPI.getAll();
+      setUserProjects(data.projects);
+    } catch (err) {
+      console.error('Failed to fetch user projects:', err);
+    }
+  };
 
-  // Real-time WebSocket connection setup
   useEffect(() => {
-    if (!projectId) return;
-    joinProject(projectId);
+    setIsLoading(true);
+    fetchProjectDetails();
+    fetchUserProjects();
+
+    if (id) {
+      joinProject(id);
+    }
 
     return () => {
-      leaveProject(projectId);
+      if (id) {
+        leaveProject(id);
+      }
     };
-  }, [projectId]);
+  }, [id]);
 
-  // Listen for real-time WebSocket Kanban events
   useEffect(() => {
-    if (!socket || !projectId) return;
+    if (!socket || !id) return;
 
     const handleTaskCreated = (newTask: Task) => {
-      setTasks((prev) => {
-        if (prev.some((t) => t.id === newTask.id)) return prev;
-        return [newTask, ...prev];
-      });
+      if (newTask.projectId === id) {
+        setProject((prev) => (prev ? { ...prev, tasks: [...prev.tasks, newTask] } : null));
+      }
     };
 
     const handleTaskUpdated = (updatedTask: Task) => {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
-      );
-      // Update modal if currently viewing this task
-      if (selectedTask?.id === updatedTask.id) {
-        setSelectedTask(updatedTask);
+      if (updatedTask.projectId === id) {
+        setProject((prev) =>
+          prev
+            ? {
+                ...prev,
+                tasks: prev.tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
+              }
+            : null
+        );
       }
     };
 
-    const handleTaskDeleted = (data: { taskId: string }) => {
-      setTasks((prev) => prev.filter((t) => t.id !== data.taskId));
-      if (selectedTask?.id === data.taskId) {
-        setSelectedTask(null);
-      }
+    const handleTaskDeleted = ({ taskId }: { taskId: string }) => {
+      setProject((prev) =>
+        prev
+          ? {
+              ...prev,
+              tasks: prev.tasks.filter((t) => t.id !== taskId),
+            }
+          : null
+      );
     };
 
     socket.on('task:created', handleTaskCreated);
@@ -98,121 +104,127 @@ export const ProjectDetailPage: React.FC = () => {
       socket.off('task:updated', handleTaskUpdated);
       socket.off('task:deleted', handleTaskDeleted);
     };
-  }, [socket, projectId, selectedTask?.id]);
-
-  const canEdit = currentUserRole === 'OWNER' || currentUserRole === 'ADMIN' || currentUserRole === 'MEMBER';
-  const canManageMembers = currentUserRole === 'OWNER' || currentUserRole === 'ADMIN';
-
-  const handleOpenAddTask = (status: TaskStatus) => {
-    setInitialTaskStatus(status);
-    setIsCreateTaskOpen(true);
-  };
-
-  const handleTaskCreated = (newTask: Task) => {
-    setTasks((prev) => [newTask, ...prev]);
-  };
-
-  const handleTaskUpdated = (updatedTask: Task) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
-    );
-    if (selectedTask?.id === updatedTask.id) {
-      setSelectedTask(updatedTask);
-    }
-  };
-
-  const handleTaskDeleted = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    if (selectedTask?.id === taskId) {
-      setSelectedTask(null);
-    }
-  };
+  }, [socket, id]);
 
   const handleDeleteProject = async () => {
-    if (!project || currentUserRole !== 'OWNER') return;
-    if (!window.confirm(`Are you sure you want to delete project "${project.name}"?`)) return;
-
-    try {
-      await projectAPI.delete(project.id);
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Failed to delete project:', error);
+    if (!id || !project) return;
+    if (window.confirm(`Are you sure you want to delete project "${project.name}"? This action cannot be undone.`)) {
+      try {
+        await projectAPI.delete(id);
+        navigate('/dashboard');
+      } catch (err) {
+        console.error('Failed to delete project:', err);
+      }
     }
   };
 
+  const isOwnerOrAdmin = currentUserRole === 'OWNER' || currentUserRole === 'ADMIN';
+  const isViewer = currentUserRole === 'VIEWER';
+
+  const memberUsers = (project?.members || []).map((m) => m.user);
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
+      <Navbar onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
 
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar onOpenCreateProject={() => setIsCreateProjectOpen(true)} />
+        <Sidebar
+          projects={userProjects}
+          onOpenCreateProjectModal={() => {}}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        />
 
-        <main className="flex-1 flex flex-col p-6 overflow-hidden">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto flex flex-col">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+              <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : !project ? (
-            <div className="p-8 text-center text-slate-500">Project not found</div>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <h3 className="font-bold text-slate-800 dark:text-white text-lg">Project Not Found</h3>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="mt-4 px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-semibold"
+              >
+                Back to Dashboard
+              </button>
+            </div>
           ) : (
-            <div className="flex-1 flex flex-col space-y-5 overflow-hidden">
-              {/* Project Header Bar */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                      {project.name}
-                    </h1>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-brand-100 text-brand-700">
-                      {currentUserRole}
-                    </span>
+            <>
+              {/* Board Top Control Bar */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mt-0.5"
+                    title="Back to Dashboard"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                        {project.name}
+                      </h2>
+                      {currentUserRole && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                          <Shield className="w-3 h-3" />
+                          {currentUserRole}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      {project.description || 'No project description.'}
+                    </p>
                   </div>
-                  {project.description && (
-                    <p className="text-xs text-slate-500 max-w-2xl">{project.description}</p>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-2.5 flex-wrap">
                   {/* Member Avatars */}
-                  <div className="flex items-center -space-x-2 mr-1">
-                    {project.members?.slice(0, 5).map((m) => (
+                  <div className="flex items-center -space-x-2 mr-2">
+                    {(project.members || []).slice(0, 4).map((m) => (
                       <img
                         key={m.id}
                         src={m.user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${m.user.name}`}
                         alt={m.user.name}
                         title={`${m.user.name} (${m.role})`}
-                        className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-2xs"
+                        className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 object-cover"
                       />
                     ))}
-                    {(project.members?.length || 0) > 5 && (
-                      <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600">
-                        +{(project.members?.length || 0) - 5}
+                    {(project.members || []).length > 4 && (
+                      <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center">
+                        +{(project.members || []).length - 4}
                       </div>
                     )}
                   </div>
 
-                  {canManageMembers && (
+                  {isOwnerOrAdmin && (
                     <button
-                      onClick={() => setIsInviteOpen(true)}
-                      className="px-3 py-2 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
                     >
-                      <UserPlus className="w-3.5 h-3.5" /> Invite
+                      <UserPlus className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                      <span>Invite</span>
                     </button>
                   )}
 
-                  {canEdit && (
+                  {!isViewer && (
                     <button
-                      onClick={() => handleOpenAddTask('TODO')}
+                      onClick={() => setIsCreateTaskOpen(true)}
                       className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-colors"
                     >
-                      <Plus className="w-4 h-4" /> Add Task
+                      <Plus className="w-4 h-4" />
+                      <span>Add Task</span>
                     </button>
                   )}
 
                   {currentUserRole === 'OWNER' && (
                     <button
                       onClick={handleDeleteProject}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                       title="Delete Project"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -221,56 +233,44 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Kanban Board Container */}
-              <div className="flex-1 min-h-0 overflow-hidden">
+              {/* Interactive Drag-and-Drop Kanban Board */}
+              <div className="flex-1">
                 <KanbanBoard
-                  tasks={tasks}
-                  onTaskUpdated={handleTaskUpdated}
-                  onTaskClick={(task) => setSelectedTask(task)}
-                  onAddTask={handleOpenAddTask}
-                  canEdit={canEdit}
+                  projectId={project.id}
+                  tasks={project.tasks || []}
+                  members={memberUsers}
+                  currentUserRole={currentUserRole}
+                  onTaskUpdated={fetchProjectDetails}
                 />
               </div>
-            </div>
+            </>
           )}
         </main>
       </div>
 
-      {/* Modals */}
       {project && (
         <>
           <CreateTaskModal
             isOpen={isCreateTaskOpen}
             projectId={project.id}
-            initialStatus={initialTaskStatus}
-            members={project.members || []}
+            members={memberUsers}
             onClose={() => setIsCreateTaskOpen(false)}
-            onSuccess={handleTaskCreated}
+            onSuccess={() => {
+              fetchProjectDetails();
+              setIsCreateTaskOpen(false);
+            }}
           />
 
           <InviteMemberModal
-            isOpen={isInviteOpen}
+            isOpen={isInviteModalOpen}
             projectId={project.id}
-            onClose={() => setIsInviteOpen(false)}
-            onSuccess={fetchProjectData}
+            onClose={() => setIsInviteModalOpen(false)}
+            onSuccess={() => {
+              fetchProjectDetails();
+            }}
           />
         </>
       )}
-
-      <TaskDetailModal
-        task={selectedTask}
-        members={project?.members || []}
-        canEdit={canEdit}
-        onClose={() => setSelectedTask(null)}
-        onTaskUpdated={handleTaskUpdated}
-        onTaskDeleted={handleTaskDeleted}
-      />
-
-      <CreateProjectModal
-        isOpen={isCreateProjectOpen}
-        onClose={() => setIsCreateProjectOpen(false)}
-        onSuccess={(newProj) => navigate(`/projects/${newProj.id}`)}
-      />
     </div>
   );
 };

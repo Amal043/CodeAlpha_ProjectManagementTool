@@ -1,60 +1,76 @@
 import React from 'react';
-import { Kanban, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { Kanban, LogOut, Sun, Moon, Menu } from 'lucide-react';
 import { NotificationDropdown } from '../notifications/NotificationDropdown';
-import { Link } from 'react-router-dom';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onToggleMobileSidebar?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between shadow-sm">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors duration-200">
       <div className="flex items-center gap-3">
-        <Link to="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 via-brand-600 to-indigo-500 flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+        {/* Mobile Hamburger Toggle */}
+        <button
+          onClick={onToggleMobileSidebar}
+          className="md:hidden p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title="Open Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 via-brand-600 to-indigo-500 flex items-center justify-center shadow-md shadow-brand-500/20">
             <Kanban className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <span className="font-bold text-lg text-slate-900 tracking-tight flex items-center gap-1">
-              Task<span className="text-brand-600">Flow</span>
-            </span>
-            <span className="hidden sm:block text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+          <div className="hidden sm:block">
+            <h1 className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight leading-none">
+              Task<span className="text-brand-600 dark:text-brand-400">Flow</span>
+            </h1>
+            <span className="text-[10px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Collaborative Workspace
             </span>
           </div>
-        </Link>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Real-time Notification Engine */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Dark/Light Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title="Toggle Light / Dark Theme"
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+        </button>
+
         <NotificationDropdown />
 
-        <div className="h-6 w-px bg-slate-200" />
-
-        {/* User Profile Menu */}
         {user && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200/60 rounded-full py-1 px-3 shadow-2xs">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full bg-brand-100 object-cover border border-brand-200"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-semibold">
-                  {user.name.charAt(0)}
-                </div>
-              )}
-              <span className="text-xs font-semibold text-slate-700 hidden sm:inline">
-                {user.name}
-              </span>
+          <div className="flex items-center gap-3 pl-2 sm:pl-3 border-l border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <img
+                src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
+                alt={user.name}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 object-cover"
+              />
+              <div className="hidden sm:block">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">{user.name}</p>
+                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]">
+                  {user.email}
+                </p>
+              </div>
             </div>
 
             <button
               onClick={logout}
-              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors focus:outline-none"
-              title="Sign Out"
+              className="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              title="Logout"
             >
               <LogOut className="w-4 h-4" />
             </button>
