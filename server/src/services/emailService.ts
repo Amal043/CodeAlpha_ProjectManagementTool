@@ -8,6 +8,18 @@ interface SendInviteParams {
   inviteLink: string;
 }
 
+const getEmailText = (senderName: string, projectName: string, role: string, inviteLink: string) => `
+Hello,
+
+${senderName} has invited you to join the project workspace "${projectName}" as a ${role.toLowerCase()}.
+
+Accept Invitation & Join Project:
+${inviteLink}
+
+If the link above does not open directly, copy and paste this URL into your browser:
+${inviteLink}
+`;
+
 const getEmailHtml = (senderName: string, projectName: string, role: string, inviteLink: string) => `
   <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
     <div style="text-align: center; margin-bottom: 24px;">
@@ -51,7 +63,7 @@ export const sendProjectInviteEmail = async ({
 
     const senderEmail = process.env.SENDER_EMAIL || smtpUser || '2024ugme044@nitjsr.ac.in';
 
-    // 1. Brevo REST API Dispatch (Using verified sender email)
+    // 1. Brevo REST API Dispatch (with plain text & HTML for maximum deliverability)
     if (brevoApiKey) {
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -66,6 +78,7 @@ export const sendProjectInviteEmail = async ({
             to: [{ email: toEmail }],
             subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
             htmlContent: getEmailHtml(senderName, projectName, role, inviteLink),
+            textContent: getEmailText(senderName, projectName, role, inviteLink),
           }),
         });
 
@@ -95,6 +108,7 @@ export const sendProjectInviteEmail = async ({
             to: [toEmail],
             subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
             html: getEmailHtml(senderName, projectName, role, inviteLink),
+            text: getEmailText(senderName, projectName, role, inviteLink),
           }),
         });
 
@@ -127,6 +141,7 @@ export const sendProjectInviteEmail = async ({
           from: `"TaskFlow Workspaces" <${smtpUser}>`,
           to: toEmail,
           subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+          text: getEmailText(senderName, projectName, role, inviteLink),
           html: getEmailHtml(senderName, projectName, role, inviteLink),
         });
 
