@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Kanban, LogOut, Sun, Moon, Menu } from 'lucide-react';
+import { LogOut, Sun, Moon, Menu } from 'lucide-react';
 import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface NavbarProps {
@@ -24,10 +24,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 via-brand-600 to-indigo-500 flex items-center justify-center shadow-md shadow-brand-500/20">
-            <Kanban className="w-5 h-5 text-white" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.png"
+            alt="TaskFlow Logo"
+            className="w-9 h-9 object-contain rounded-xl shadow-md shadow-violet-500/20"
+          />
           <div className="hidden sm:block">
             <h1 className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight leading-none">
               Task<span className="text-brand-600 dark:text-brand-400">Flow</span>

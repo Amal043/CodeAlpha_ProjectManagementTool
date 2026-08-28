@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Kanban, ArrowRight, Loader2, KeyRound, Mail, Sparkles, Sun, Moon } from 'lucide-react';
+import { ArrowRight, Loader2, KeyRound, Mail, Sparkles, Sun, Moon } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -57,9 +57,11 @@ export const LoginPage: React.FC = () => {
 
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6 relative">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25 mb-3">
-            <Kanban className="w-6 h-6 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="TaskFlow Logo"
+            className="w-14 h-14 object-contain mb-3 drop-shadow-md"
+          />
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Welcome Back</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Sign in to your TaskFlow workspace</p>
         </div>
