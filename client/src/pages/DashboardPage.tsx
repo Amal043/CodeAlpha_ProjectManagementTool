@@ -6,6 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/layout/Navbar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { CreateProjectModal } from '../components/projects/CreateProjectModal';
+import { TeamMembersModal } from '../components/tools/TeamMembersModal';
+import { ReportsModal } from '../components/tools/ReportsModal';
+import { SettingsModal } from '../components/tools/SettingsModal';
+import { HelpSupportModal } from '../components/tools/HelpSupportModal';
 import {
   FolderPlus, Layout, CheckCircle2, AlertTriangle, ArrowRight,
   Plus, ChevronDown, MoreVertical, Calendar, Zap
@@ -57,7 +61,14 @@ export const DashboardPage: React.FC = () => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -107,6 +118,10 @@ export const DashboardPage: React.FC = () => {
         <Sidebar
           projects={projects}
           onOpenCreateProjectModal={() => setIsCreateModalOpen(true)}
+          onOpenTeamMembersModal={() => setIsTeamModalOpen(true)}
+          onOpenReportsModal={() => setIsReportsModalOpen(true)}
+          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+          onOpenHelpModal={() => setIsHelpModalOpen(true)}
           isMobileOpen={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
@@ -134,7 +149,7 @@ export const DashboardPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Stats Cards — compact */}
+              {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: Layout, color: 'bg-brand-100 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400', value: projects.length, label: 'Active Projects' },
@@ -333,6 +348,29 @@ export const DashboardPage: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={() => { fetchDashboardData(); setIsCreateModalOpen(false); }}
+      />
+
+      <TeamMembersModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        projects={projects}
+      />
+
+      <ReportsModal
+        isOpen={isReportsModalOpen}
+        onClose={() => setIsReportsModalOpen(false)}
+        projects={projects}
+        tasks={allTasks}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+      />
+
+      <HelpSupportModal
+        isOpen={isHelpModalOpen}
+        onClose={() => setIsHelpModalOpen(false)}
       />
     </div>
   );

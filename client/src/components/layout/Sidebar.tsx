@@ -6,6 +6,10 @@ import { Project } from '../../types';
 interface SidebarProps {
   projects: Project[];
   onOpenCreateProjectModal: () => void;
+  onOpenTeamMembersModal?: () => void;
+  onOpenReportsModal?: () => void;
+  onOpenSettingsModal?: () => void;
+  onOpenHelpModal?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -23,6 +27,10 @@ function getProjectInitials(name: string) {
 export const Sidebar: React.FC<SidebarProps> = ({
   projects,
   onOpenCreateProjectModal,
+  onOpenTeamMembersModal,
+  onOpenReportsModal,
+  onOpenSettingsModal,
+  onOpenHelpModal,
   isMobileOpen,
   onCloseMobile,
 }) => {
@@ -146,17 +154,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">Tools</p>
             <div className="space-y-0.5">
-              {[
-                { icon: Users, label: 'Team Members' },
-                { icon: BarChart3, label: 'Reports' },
-                { icon: Settings, label: 'Settings' },
-                { icon: HelpCircle, label: 'Help & Support' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
-                  <Icon className="w-[17px] h-[17px]" />
-                  <span>{label}</span>
-                </div>
-              ))}
+              <button
+                onClick={() => { onOpenTeamMembersModal?.(); if (onCloseMobile) onCloseMobile(); }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer w-full text-left"
+              >
+                <Users className="w-[17px] h-[17px]" />
+                <span>Team Members</span>
+              </button>
+
+              <button
+                onClick={() => { onOpenReportsModal?.(); if (onCloseMobile) onCloseMobile(); }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer w-full text-left"
+              >
+                <BarChart3 className="w-[17px] h-[17px]" />
+                <span>Reports</span>
+              </button>
+
+              <button
+                onClick={() => { onOpenSettingsModal?.(); if (onCloseMobile) onCloseMobile(); }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer w-full text-left"
+              >
+                <Settings className="w-[17px] h-[17px]" />
+                <span>Settings</span>
+              </button>
+
+              <button
+                onClick={() => { onOpenHelpModal?.(); if (onCloseMobile) onCloseMobile(); }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer w-full text-left"
+              >
+                <HelpCircle className="w-[17px] h-[17px]" />
+                <span>Help & Support</span>
+              </button>
             </div>
           </div>
         </div>
