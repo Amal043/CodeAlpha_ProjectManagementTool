@@ -11,18 +11,31 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('taskflow_theme');
-    return saved === 'dark' || saved === 'light' ? saved : 'light';
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = localStorage.getItem('taskflow_theme');
+        if (saved === 'dark' || saved === 'light') return saved;
+      }
+    } catch (e) {
+      console.warn('localStorage error:', e);
+    }
+    return 'light';
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    try {
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('taskflow_theme', theme);
+      }
+    } catch (e) {
+      console.warn('localStorage error:', e);
     }
-    localStorage.setItem('taskflow_theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
