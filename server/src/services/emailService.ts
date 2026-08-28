@@ -61,9 +61,10 @@ export const sendProjectInviteEmail = async ({
     const smtpHost = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
-    const senderEmail = process.env.SENDER_EMAIL || smtpUser || '2024ugme044@nitjsr.ac.in';
+    // Use verified sender email
+    const senderEmail = process.env.SENDER_EMAIL || 'srivastavaamal013@gmail.com';
 
-    // 1. Brevo REST API Dispatch (with plain text & HTML for maximum deliverability)
+    // 1. Brevo REST API Dispatch (Using verified srivastavaamal013@gmail.com sender)
     if (brevoApiKey) {
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -152,7 +153,7 @@ export const sendProjectInviteEmail = async ({
       }
     }
 
-    console.warn(`⚠️ Neither Brevo API, Resend API, nor SMTP credentials succeeded. Direct join link generated.`);
+    console.warn(`⚠️ No active email service configured. Direct join link generated.`);
     return false;
   } catch (error) {
     console.error('❌ Email dispatch failed:', error);
