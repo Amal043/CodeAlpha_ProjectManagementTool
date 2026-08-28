@@ -23,9 +23,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    const socketUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-      ? 'http://localhost:5000' 
-      : window.location.origin;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || (
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:5000' 
+        : 'https://codealpha-projectmanagementtool-do67.onrender.com'
+    );
 
     const socketInstance = io(socketUrl, {
       transports: ['websocket', 'polling'],
