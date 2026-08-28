@@ -22,24 +22,25 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URL = process.env.CLIENT_URL || '*';
 
-// Socket.IO Setup
+// Socket.IO Setup with open CORS for cloud deployments
 const io = new SocketServer(server, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
   },
 });
 
 initializeSocket(io);
 
-// Middlewares
-app.use(helmet());
+// Middlewares - Disable helmet contentSecurityPolicy to allow external avatar images & sockets
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS configuration supporting localhost, Vercel deployments, and custom domains
 app.use(
   cors({
-    origin: [CLIENT_URL, 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    origin: true, // Dynamically mirror request origin to support all Vercel previews & domains
     credentials: true,
   })
 );
@@ -49,7 +50,7 @@ app.use(express.json());
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 requests per window
+  max: 500, // Increased limit for real-time app interactions
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests from this IP, please try again later.' },
