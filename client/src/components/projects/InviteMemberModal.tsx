@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Loader2, Search, Copy, Check, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { X, UserPlus, Loader2, Search, Copy, Check, Sparkles } from 'lucide-react';
 import { projectAPI, userAPI } from '../../services/api';
 import { ProjectRole, User } from '../../types';
 
@@ -66,7 +66,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
 
     try {
       const data = await projectAPI.addMember(projectId, email.trim(), role);
-      setSuccessMessage(data.message || 'Invitation generated successfully!');
+      setSuccessMessage(data.message || 'Invitation processed successfully!');
       if (data.inviteLink) {
         setGeneratedInviteLink(data.inviteLink);
       }
@@ -95,7 +95,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">Invite Team Member</h3>
-              <p className="text-xs text-slate-500">Add any email or share a join link</p>
+              <p className="text-xs text-slate-500">Send an email invitation or share a join link</p>
             </div>
           </div>
           <button
@@ -151,7 +151,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="e.g. nitishtripathi547@gmail.com"
+                placeholder="abc@gmail.com"
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-xs font-medium text-slate-800"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -212,10 +212,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Generating Invite...
+                  Sending Invite...
                 </>
               ) : (
-                'Generate Join Link'
+                'Send Email Invite'
               )}
             </button>
           </div>
