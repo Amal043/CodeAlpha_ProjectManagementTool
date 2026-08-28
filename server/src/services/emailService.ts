@@ -42,13 +42,44 @@ export const sendProjectInviteEmail = async ({
   inviteLink,
 }: SendInviteParams): Promise<boolean> => {
   try {
+    const brevoApiKey = process.env.BREVO_API_KEY;
     const resendApiKey = process.env.RESEND_API_KEY;
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
-    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const smtpHost = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
-    // 1. Try Resend API if RESEND_API_KEY is configured
+    // 1. Brevo REST API Dispatch
+    if (brevoApiKey) {
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { name: 'TaskFlow Workspaces', email: 'no-reply@taskflow.dev' },
+            to: [{ email: toEmail }],
+            subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+            htmlContent: getEmailHtml(senderName, projectName, role, inviteLink),
+          }),
+        });
+
+        const resData: any = await response.json().catch(() => ({}));
+        if (response.ok) {
+          console.log(`✉️ Real email dispatched via Brevo API to ${toEmail}. MessageID:`, resData.messageId);
+          return true;
+        } else {
+          console.error(`❌ Brevo API Error (${response.status}):`, resData);
+        }
+      } catch (brevoErr) {
+        console.error('❌ Brevo API fetch exception:', brevoErr);
+      }
+    }
+
+    // 2. Resend API Dispatch
     if (resendApiKey) {
       try {
         const response = await fetch('https://api.resend.com/emails', {
@@ -77,7 +108,7 @@ export const sendProjectInviteEmail = async ({
       }
     }
 
-    // 2. Try Gmail / Custom SMTP if credentials exist
+    // 3. SMTP Transport Dispatch (Gmail, Brevo SMTP, Outlook)
     if (smtpUser && smtpPass) {
       try {
         const transporter = nodemailer.createTransport({
@@ -97,14 +128,14 @@ export const sendProjectInviteEmail = async ({
           html: getEmailHtml(senderName, projectName, role, inviteLink),
         });
 
-        console.log(`✉️ Real email dispatched via SMTP (${smtpUser}) to ${toEmail}`);
+        console.log(`✉️ Real email dispatched via SMTP (${smtpHost}) to ${toEmail}`);
         return true;
       } catch (smtpErr) {
         console.error('❌ SMTP dispatch exception:', smtpErr);
       }
     }
 
-    console.warn(`⚠️ Neither Resend API nor SMTP credentials succeeded. Direct join link generated.`);
+    console.warn(`⚠️ No active email service configured in environment variables. Direct join link generated.`);
     return false;
   } catch (error) {
     console.error('❌ Email dispatch failed:', error);
