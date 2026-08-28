@@ -49,7 +49,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     const handleCommentCreated = (comment: Comment) => {
       if (comment.taskId === task.id) {
-        setComments((prev) => [...prev, comment]);
+        setComments((prev) => {
+          if (prev.some((c) => c.id === comment.id)) return prev;
+          return [...prev, comment];
+        });
       }
     };
 
@@ -91,14 +94,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    e.stopPropagation();
+    if (!newComment.trim() || isSubmittingComment) return;
 
     setIsSubmittingComment(true);
+    const contentToSend = newComment.trim();
+    setNewComment('');
+
     try {
-      await commentAPI.create(task.id, newComment.trim());
-      setNewComment('');
+      const data = await commentAPI.create(task.id, contentToSend);
+      if (data && data.comment) {
+        setComments((prev) => {
+          if (prev.some((c) => c.id === data.comment.id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
     } catch (err) {
       console.error('Failed to add comment:', err);
+      setNewComment(contentToSend); // restore on error
     } finally {
       setIsSubmittingComment(false);
     }

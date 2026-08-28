@@ -6,6 +6,9 @@ import { Project } from '../../types';
 interface SidebarProps {
   projects: Project[];
   onOpenCreateProjectModal: () => void;
+  onOpenMyTasksModal?: () => void;
+  onOpenNotificationsModal?: () => void;
+  onOpenCalendarModal?: () => void;
   onOpenTeamMembersModal?: () => void;
   onOpenReportsModal?: () => void;
   onOpenSettingsModal?: () => void;
@@ -27,6 +30,9 @@ function getProjectInitials(name: string) {
 export const Sidebar: React.FC<SidebarProps> = ({
   projects,
   onOpenCreateProjectModal,
+  onOpenMyTasksModal,
+  onOpenNotificationsModal,
+  onOpenCalendarModal,
   onOpenTeamMembersModal,
   onOpenReportsModal,
   onOpenSettingsModal,
@@ -34,17 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
 }) => {
-  const navigate = useNavigate();
-
-  const scrollToSection = (sectionId: string) => {
-    navigate('/dashboard');
-    if (onCloseMobile) onCloseMobile();
-    setTimeout(() => {
-      const el = document.getElementById(sectionId);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-  };
-
   return (
     <>
       {isMobileOpen && (
@@ -85,24 +80,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </NavLink>
 
             <button
-              onClick={() => scrollToSection('section-my-tasks')}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left"
+              onClick={() => { onOpenMyTasksModal?.(); if (onCloseMobile) onCloseMobile(); }}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left cursor-pointer"
             >
               <CheckSquare className="w-[17px] h-[17px]" />
               <span>My Tasks</span>
             </button>
 
             <button
-              onClick={() => scrollToSection('section-activity')}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left"
+              onClick={() => { onOpenNotificationsModal?.(); if (onCloseMobile) onCloseMobile(); }}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left cursor-pointer"
             >
               <Bell className="w-[17px] h-[17px]" />
               <span>Notifications</span>
             </button>
 
             <button
-              onClick={() => scrollToSection('section-deadlines')}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left"
+              onClick={() => { onOpenCalendarModal?.(); if (onCloseMobile) onCloseMobile(); }}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all w-full text-left cursor-pointer"
             >
               <Calendar className="w-[17px] h-[17px]" />
               <span>Calendar</span>
@@ -142,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ))}
               <button
                 onClick={() => { onOpenCreateProjectModal(); if (onCloseMobile) onCloseMobile(); }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-all w-full"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-all w-full cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Project</span>

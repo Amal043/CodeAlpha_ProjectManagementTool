@@ -10,6 +10,9 @@ import { TeamMembersModal } from '../components/tools/TeamMembersModal';
 import { ReportsModal } from '../components/tools/ReportsModal';
 import { SettingsModal } from '../components/tools/SettingsModal';
 import { HelpSupportModal } from '../components/tools/HelpSupportModal';
+import { MyTasksModal } from '../components/tools/MyTasksModal';
+import { NotificationsModal } from '../components/tools/NotificationsModal';
+import { CalendarModal } from '../components/tools/CalendarModal';
 import {
   FolderPlus, Layout, CheckCircle2, AlertTriangle, ArrowRight,
   Plus, ChevronDown, MoreVertical, Calendar, Zap
@@ -64,6 +67,9 @@ export const DashboardPage: React.FC = () => {
 
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isMyTasksModalOpen, setIsMyTasksModalOpen] = useState(false);
+  const [isNotifsModalOpen, setIsNotifsModalOpen] = useState(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -118,6 +124,9 @@ export const DashboardPage: React.FC = () => {
         <Sidebar
           projects={projects}
           onOpenCreateProjectModal={() => setIsCreateModalOpen(true)}
+          onOpenMyTasksModal={() => setIsMyTasksModalOpen(true)}
+          onOpenNotificationsModal={() => setIsNotifsModalOpen(true)}
+          onOpenCalendarModal={() => setIsCalendarModalOpen(true)}
           onOpenTeamMembersModal={() => setIsTeamModalOpen(true)}
           onOpenReportsModal={() => setIsReportsModalOpen(true)}
           onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
@@ -143,7 +152,7 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-colors shrink-0"
+                  className="px-3.5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> New Project <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
@@ -243,7 +252,12 @@ export const DashboardPage: React.FC = () => {
                 <div id="section-my-tasks" className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm">My Tasks</h3>
-                    <button className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">View all <ArrowRight className="w-3 h-3" /></button>
+                    <button
+                      onClick={() => setIsMyTasksModalOpen(true)}
+                      className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      View all <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
                   {displayTasks.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500">No tasks assigned yet.</div>
@@ -295,7 +309,9 @@ export const DashboardPage: React.FC = () => {
                   <div id="section-deadlines" className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <h4 className="font-bold text-slate-900 dark:text-white text-xs">Upcoming Deadlines</h4>
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <button onClick={() => setIsCalendarModalOpen(true)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <Calendar className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                     <div className="p-2.5 space-y-1.5">
                       {upcomingDeadlines.length === 0 ? (
@@ -321,7 +337,9 @@ export const DashboardPage: React.FC = () => {
                   <div id="section-activity" className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <h4 className="font-bold text-slate-900 dark:text-white text-xs">Recent Activity</h4>
-                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <button onClick={() => setIsNotifsModalOpen(true)} className="p-1 text-amber-500 hover:text-amber-600 transition-colors">
+                        <Zap className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                     <div className="p-2.5 space-y-1.5">
                       {notifications.length === 0 ? (
@@ -348,6 +366,26 @@ export const DashboardPage: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={() => { fetchDashboardData(); setIsCreateModalOpen(false); }}
+      />
+
+      <MyTasksModal
+        isOpen={isMyTasksModalOpen}
+        onClose={() => setIsMyTasksModalOpen(false)}
+        tasks={allTasks}
+        projects={projects}
+        userId={user?.id}
+      />
+
+      <NotificationsModal
+        isOpen={isNotifsModalOpen}
+        onClose={() => setIsNotifsModalOpen(false)}
+      />
+
+      <CalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
+        tasks={allTasks}
+        projects={projects}
       />
 
       <TeamMembersModal
