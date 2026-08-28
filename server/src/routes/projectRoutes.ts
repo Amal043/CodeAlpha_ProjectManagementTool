@@ -294,7 +294,13 @@ router.post(
       const inviteLink = `${origin}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
 
       const inviterName = req.user!.name || 'A team member';
-      await sendProjectInviteEmail(email, project.name, inviterName, inviteLink).catch((err) => {
+      await sendProjectInviteEmail({
+        toEmail: email,
+        senderName: inviterName,
+        projectName: project.name,
+        role,
+        inviteLink,
+      }).catch((err) => {
         console.error('Email service dispatch warning:', err);
       });
 
