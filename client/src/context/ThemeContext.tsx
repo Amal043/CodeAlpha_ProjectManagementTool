@@ -10,17 +10,8 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const saved = localStorage.getItem('taskflow_theme');
-        if (saved === 'dark' || saved === 'light') return saved;
-      }
-    } catch (e) {
-      console.warn('localStorage error:', e);
-    }
-    return 'light'; // Always default to light theme
-  });
+  // Always default strictly to light theme for all visitors
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     try {
