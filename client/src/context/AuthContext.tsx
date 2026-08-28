@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, projectId?: string, role?: string) => Promise<void>;
+  updateProfile: (data: { name?: string; avatarUrl?: string; password?: string }) => Promise<void>;
   logout: () => void;
 }
 
@@ -52,6 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
   };
 
+  const updateProfile = async (data: { name?: string; avatarUrl?: string; password?: string }) => {
+    const res = await authAPI.updateProfile(data);
+    setUser(res.user);
+  };
+
   const logout = () => {
     localStorage.removeItem('taskflow_token');
     setToken(null);
@@ -67,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        updateProfile,
         logout,
       }}
     >

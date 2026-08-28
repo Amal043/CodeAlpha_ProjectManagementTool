@@ -7,6 +7,7 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { CreateTaskModal } from '../components/kanban/CreateTaskModal';
 import { InviteMemberModal } from '../components/projects/InviteMemberModal';
+import { ProfileModal } from '../components/user/ProfileModal';
 import { useSocket } from '../context/SocketContext';
 import { Plus, UserPlus, Trash2, Shield, ArrowLeft } from 'lucide-react';
 
@@ -21,6 +22,7 @@ export const ProjectDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
@@ -125,7 +127,10 @@ export const ProjectDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
-      <Navbar onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
+      <Navbar
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
@@ -247,6 +252,11 @@ export const ProjectDetailPage: React.FC = () => {
           )}
         </main>
       </div>
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
 
       {project && (
         <>

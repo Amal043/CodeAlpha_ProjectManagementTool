@@ -22,6 +22,12 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  avatarUrl: z.string().optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+});
+
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
@@ -143,6 +149,34 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response, nex
     }
 
     return res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/auth/profile - Update name, avatarUrl, or password
+router.put('/profile', authenticateToken, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const userId = req.user!.id;
+    const { name, avatarUrl, password } = updateProfileSchema.parse(req.body);
+
+    const updateData: any = {};
+    if (name) updateData.name = name.trim();
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl.trim();
+    if (password) updateData.password = await bcrypt.hash(password, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+      },
+    });
+
+    return res.json({ user: updatedUser, message: 'Profile updated successfully' });
   } catch (error) {
     next(error);
   }

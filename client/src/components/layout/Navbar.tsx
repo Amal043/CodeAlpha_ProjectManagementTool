@@ -1,14 +1,15 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LogOut, Sun, Moon, Menu, Bell, Search, Command } from 'lucide-react';
+import { LogOut, Sun, Moon, Menu, Search, Command } from 'lucide-react';
 import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface NavbarProps {
   onToggleMobileSidebar?: () => void;
+  onOpenProfileModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar, onOpenProfileModal }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -24,11 +25,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2.5">
+        <div
+          onClick={onOpenProfileModal}
+          className="flex items-center gap-2.5 cursor-pointer group"
+          title="Click to view Account Settings"
+        >
           <img
             src="/logo.png"
             alt="TaskFlow Logo"
-            className="w-8 h-8 object-contain"
+            className="w-8 h-8 object-contain transition-transform group-hover:scale-105"
           />
           <h1 className="font-extrabold text-slate-900 dark:text-white text-lg tracking-tight leading-none hidden sm:block">
             Task<span className="text-brand-600 dark:text-brand-400">Flow</span>
@@ -51,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
         </div>
       </div>
 
-      {/* Right: Theme, Notifications, User */}
+      {/* Right: Theme, Notifications, User Profile Clickable */}
       <div className="flex items-center gap-1.5 sm:gap-2.5">
         <button
           onClick={toggleTheme}
@@ -65,14 +70,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
 
         {user && (
           <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200 dark:border-slate-800">
-            <img
-              src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}&backgroundColor=7c3aed&textColor=ffffff`}
-              alt={user.name}
-              className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 border-2 border-brand-200 dark:border-brand-700 object-cover"
-            />
-            <div className="hidden sm:block">
-              <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">{user.name}</p>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">Member</p>
+            <div
+              onClick={onOpenProfileModal}
+              className="flex items-center gap-2 cursor-pointer p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all group"
+              title="Click to edit Name, Avatar, and Password"
+            >
+              <img
+                src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}&backgroundColor=7c3aed&textColor=ffffff`}
+                alt={user.name}
+                className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 border-2 border-brand-200 dark:border-brand-700 object-cover group-hover:scale-105 transition-transform"
+              />
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors leading-tight">
+                  {user.name}
+                </p>
+                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                  Member
+                </p>
+              </div>
             </div>
 
             <button

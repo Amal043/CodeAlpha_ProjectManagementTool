@@ -13,6 +13,7 @@ import { HelpSupportModal } from '../components/tools/HelpSupportModal';
 import { MyTasksModal } from '../components/tools/MyTasksModal';
 import { NotificationsModal } from '../components/tools/NotificationsModal';
 import { CalendarModal } from '../components/tools/CalendarModal';
+import { ProfileModal } from '../components/user/ProfileModal';
 import {
   FolderPlus, Layout, CheckCircle2, AlertTriangle, ArrowRight,
   Plus, ChevronDown, MoreVertical, Calendar, Zap
@@ -66,6 +67,7 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal States
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMyTasksModalOpen, setIsMyTasksModalOpen] = useState(false);
   const [isNotifsModalOpen, setIsNotifsModalOpen] = useState(false);
@@ -118,7 +120,10 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
-      <Navbar onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
+      <Navbar
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
@@ -361,6 +366,11 @@ export const DashboardPage: React.FC = () => {
           )}
         </main>
       </div>
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
 
       <CreateProjectModal
         isOpen={isCreateModalOpen}
