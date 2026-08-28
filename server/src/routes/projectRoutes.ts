@@ -220,7 +220,12 @@ router.post(
       const sender = await prisma.user.findUnique({ where: { id: currentUserId } });
       const senderName = sender?.name || 'A team member';
 
-      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+      // Dynamically detect client URL from request headers or environment
+      const clientUrl = (
+        req.headers.origin && req.headers.origin !== 'null'
+          ? req.headers.origin
+          : (process.env.CLIENT_URL || 'https://code-alpha-project-management-tool-indo.vercel.app')
+      );
 
       // 1. Check if user already exists in database
       const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -255,14 +260,13 @@ router.post(
 
         const inviteLink = `${clientUrl}/projects/${projectId}`;
 
-        // Send email invitation asynchronously
-        sendProjectInviteEmail({
+        const emailSent = await sendProjectInviteEmail({
           toEmail: email,
           senderName,
           projectName: project.name,
           role,
           inviteLink,
-        }).catch((err) => console.error('Email send error:', err));
+        });
 
         // Notify user in-app
         const notification = await prisma.notification.create({
@@ -281,7 +285,9 @@ router.post(
           member: newMember,
           inviteLink,
           isNewUser: false,
-          message: `Invitation email sent to ${email}! They are now added to the workspace.`,
+          message: emailSent
+            ? `Invitation email delivered directly to ${email}! Added to project.`
+            : `Added ${existingUser.name} (${email}) to project! Share the join link below.`,
         });
       }
 
@@ -307,19 +313,20 @@ router.post(
 
       const inviteLink = `${clientUrl}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
 
-      // Send email invitation asynchronously
-      sendProjectInviteEmail({
+      const emailSent = await sendProjectInviteEmail({
         toEmail: email,
         senderName,
         projectName: project.name,
         role,
         inviteLink,
-      }).catch((err) => console.error('Email send error:', err));
+      });
 
       return res.status(200).json({
         inviteLink,
         isNewUser: true,
-        message: `Invitation email sent to ${email}! (Or share the link below to join instantly)`,
+        message: emailSent
+          ? `Invitation email delivered directly to ${email}!`
+          : `Invitation generated for ${email}! Share the join link below. (Add GMAIL_USER & GMAIL_APP_PASS on Render for automatic email delivery)`,
       });
     } catch (error) {
       next(error);

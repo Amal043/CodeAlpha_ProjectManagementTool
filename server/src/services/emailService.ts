@@ -8,51 +8,31 @@ interface SendInviteParams {
   inviteLink: string;
 }
 
-let transporter: nodemailer.Transporter | null = null;
+const getEmailHtml = (senderName: string, projectName: string, role: string, inviteLink: string) => `
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="display: inline-block; width: 48px; height: 48px; background: linear-gradient(135deg, #7c3aed, #4c1d95); border-radius: 12px; line-height: 48px; color: #ffffff; font-size: 20px; font-weight: bold;">TF</div>
+      <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px; font-size: 20px;">Workspace Invitation</h2>
+      <p style="color: #64748b; font-size: 13px; margin: 0;">TaskFlow Collaborative Workspace</p>
+    </div>
+    
+    <p style="color: #334155; font-size: 14px; line-height: 1.6;">Hello,</p>
+    <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+      <strong>${senderName}</strong> has invited you to join the project workspace <strong>"${projectName}"</strong> as a <strong>${role.toLowerCase()}</strong>.
+    </p>
 
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (transporter) return transporter;
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${inviteLink}" target="_blank" style="background-color: #7c3aed; color: #ffffff; font-size: 13px; font-weight: 600; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);">
+        Accept Invitation & Join Project
+      </a>
+    </div>
 
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
-
-  if (smtpHost && smtpUser && smtpPass) {
-    transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-  } else if (smtpUser && smtpPass) {
-    // Gmail default service
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-  } else {
-    // Automatic fallback Ethereal test account for seamless local/preview testing
-    console.log('✉️ Creating automatic Ethereal SMTP test account for email dispatches...');
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
-  }
-
-  return transporter;
-}
+    <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+      If the button above does not open directly, copy and paste this URL into your browser:<br>
+      <a href="${inviteLink}" style="color: #7c3aed; word-break: break-all;">${inviteLink}</a>
+    </p>
+  </div>
+`;
 
 export const sendProjectInviteEmail = async ({
   toEmail,
@@ -60,54 +40,63 @@ export const sendProjectInviteEmail = async ({
   projectName,
   role,
   inviteLink,
-}: SendInviteParams): Promise<string | null> => {
+}: SendInviteParams): Promise<boolean> => {
   try {
-    const transport = await getTransporter();
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+    const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
+    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
-    const mailOptions = {
-      from: `"TaskFlow Workspaces" <${process.env.SMTP_USER || 'no-reply@taskflow.dev'}>`,
-      to: toEmail,
-      subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <div style="display: inline-block; width: 48px; height: 48px; background: linear-gradient(135deg, #7c3aed, #4c1d95); border-radius: 12px; line-height: 48px; color: #ffffff; font-size: 20px; font-weight: bold;">TF</div>
-            <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px; font-size: 20px;">Workspace Invitation</h2>
-            <p style="color: #64748b; font-size: 13px; margin: 0;">TaskFlow Collaborative Workspace</p>
-          </div>
-          
-          <p style="color: #334155; font-size: 14px; line-height: 1.6;">Hello,</p>
-          <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-            <strong>${senderName}</strong> has invited you to join the project workspace <strong>"${projectName}"</strong> as a <strong>${role.toLowerCase()}</strong>.
-          </p>
+    // 1. Try Resend API if RESEND_API_KEY is configured
+    if (resendApiKey) {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'TaskFlow <onboarding@resend.dev>',
+          to: [toEmail],
+          subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+          html: getEmailHtml(senderName, projectName, role, inviteLink),
+        }),
+      });
 
-          <div style="text-align: center; margin: 28px 0;">
-            <a href="${inviteLink}" target="_blank" style="background-color: #7c3aed; color: #ffffff; font-size: 13px; font-weight: 600; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);">
-              Accept Invitation & Join Project
-            </a>
-          </div>
-
-          <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-            If the button above does not open directly, copy and paste this URL into your browser:<br>
-            <a href="${inviteLink}" style="color: #7c3aed; word-break: break-all;">${inviteLink}</a>
-          </p>
-        </div>
-      `,
-    };
-
-    const info = await transport.sendMail(mailOptions);
-    console.log(`✉️ Invitation email dispatched to ${toEmail}. MessageID: ${info.messageId}`);
-    
-    // Log Ethereal preview URL if applicable
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      console.log(`🔗 Ethereal Email Preview URL: ${previewUrl}`);
-      return previewUrl;
+      if (response.ok) {
+        console.log(`✉️ Real email dispatched via Resend API to ${toEmail}`);
+        return true;
+      }
     }
 
-    return null;
+    // 2. Try Gmail / Custom SMTP if credentials exist
+    if (smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"TaskFlow Workspaces" <${smtpUser}>`,
+        to: toEmail,
+        subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
+        html: getEmailHtml(senderName, projectName, role, inviteLink),
+      });
+
+      console.log(`✉️ Real email dispatched via SMTP (${smtpUser}) to ${toEmail}`);
+      return true;
+    }
+
+    console.warn(`⚠️ SMTP Credentials (GMAIL_USER & GMAIL_APP_PASS or RESEND_API_KEY) not set in environment. Standard join link generated.`);
+    return false;
   } catch (error) {
-    console.error('❌ Failed to dispatch invitation email:', error);
-    return null;
+    console.error('❌ Email dispatch failed:', error);
+    return false;
   }
 };
