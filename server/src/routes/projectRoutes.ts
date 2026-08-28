@@ -4,6 +4,7 @@ import { prisma } from '../db/prisma';
 import { authenticateToken, checkProjectRole } from '../middlewares/auth';
 import { AuthRequest, ProjectRole } from '../types';
 import { sendNotificationToUser } from '../socket/socketHandler';
+import { sendProjectInviteEmail } from '../services/emailService';
 
 const router = Router();
 
@@ -216,6 +217,9 @@ router.post(
         return res.status(404).json({ message: 'Project not found' });
       }
 
+      const sender = await prisma.user.findUnique({ where: { id: currentUserId } });
+      const senderName = sender?.name || 'A team member';
+
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
       // 1. Check if user already exists in database
@@ -249,7 +253,18 @@ router.post(
           },
         });
 
-        // Notify user
+        const inviteLink = `${clientUrl}/projects/${projectId}`;
+
+        // Send email invitation asynchronously
+        sendProjectInviteEmail({
+          toEmail: email,
+          senderName,
+          projectName: project.name,
+          role,
+          inviteLink,
+        }).catch((err) => console.error('Email send error:', err));
+
+        // Notify user in-app
         const notification = await prisma.notification.create({
           data: {
             userId: existingUser.id,
@@ -262,13 +277,11 @@ router.post(
 
         sendNotificationToUser(existingUser.id, notification);
 
-        const inviteLink = `${clientUrl}/projects/${projectId}`;
-
         return res.status(201).json({
           member: newMember,
           inviteLink,
           isNewUser: false,
-          message: `Added ${existingUser.name} (${email}) to project workspace!`,
+          message: `Invitation email sent to ${email}! They are now added to the workspace.`,
         });
       }
 
@@ -294,10 +307,19 @@ router.post(
 
       const inviteLink = `${clientUrl}/register?email=${encodeURIComponent(email)}&projectId=${projectId}&role=${role}`;
 
+      // Send email invitation asynchronously
+      sendProjectInviteEmail({
+        toEmail: email,
+        senderName,
+        projectName: project.name,
+        role,
+        inviteLink,
+      }).catch((err) => console.error('Email send error:', err));
+
       return res.status(200).json({
         inviteLink,
         isNewUser: true,
-        message: `Invitation generated for ${email}! Share the join link so they can register and join automatically.`,
+        message: `Invitation email sent to ${email}! (Or share the link below to join instantly)`,
       });
     } catch (error) {
       next(error);
