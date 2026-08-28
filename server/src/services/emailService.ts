@@ -49,7 +49,9 @@ export const sendProjectInviteEmail = async ({
     const smtpHost = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
-    // 1. Brevo REST API Dispatch
+    const senderEmail = process.env.SENDER_EMAIL || smtpUser || '2024ugme044@nitjsr.ac.in';
+
+    // 1. Brevo REST API Dispatch (Using verified sender email)
     if (brevoApiKey) {
       try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -60,7 +62,7 @@ export const sendProjectInviteEmail = async ({
             'Accept': 'application/json',
           },
           body: JSON.stringify({
-            sender: { name: 'TaskFlow Workspaces', email: 'no-reply@taskflow.dev' },
+            sender: { name: 'TaskFlow Workspaces', email: senderEmail },
             to: [{ email: toEmail }],
             subject: `Workspace Invitation: Join "${projectName}" on TaskFlow`,
             htmlContent: getEmailHtml(senderName, projectName, role, inviteLink),
@@ -135,7 +137,7 @@ export const sendProjectInviteEmail = async ({
       }
     }
 
-    console.warn(`⚠️ No active email service configured in environment variables. Direct join link generated.`);
+    console.warn(`⚠️ Neither Brevo API, Resend API, nor SMTP credentials succeeded. Direct join link generated.`);
     return false;
   } catch (error) {
     console.error('❌ Email dispatch failed:', error);
